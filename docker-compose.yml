@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     ports:
-      - "5432:5432"   
+      - "5432:5432"
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +19,6 @@ services:
       start_period: 5s
     restart: always
 
-
   airflow-init:
     image: apache/airflow:2.9.3
     container_name: airflow-init
@@ -28,8 +27,10 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    entrypoint: /bin/bash
-    command: -c "airflow db migrate"
+      # 중요: Airflow 2.9와 호환되는 Kafka Provider 버전 고정 (업그레이드 방지)
+      _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python pyupbit apache-airflow-providers-apache-kafka==1.4.0"
+    # entrypoint 오버라이드 삭제 -> 기본 entrypoint가 환경변수 다 잡아줌
+    command: bash -c "airflow db migrate && sleep 5 && airflow users create --username admin --firstname Gyeoung --lastname Kim --role Admin --email admin@example.com --password admin || true"
     volumes:
       - ./dags:/opt/airflow/dags
     restart: on-failure
@@ -43,11 +44,15 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    command: airflow webserver
+      AIRFLOW__CORE__REMOTE_LOGGING: "False"
+      # 여기도 동일하게 버전 고정
+      _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python pyupbit apache-airflow-providers-apache-kafka==1.4.0"
+    command: bash -c "chown -R airflow:root /opt/airflow/logs && airflow webserver"
     ports:
       - "8080:8080"
     volumes:
       - ./dags:/opt/airflow/dags
+      - airflow-logs-volume:/opt/airflow/logs
     restart: always
 
   airflow-scheduler:
@@ -59,9 +64,14 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
-    command: airflow scheduler
+      AIRFLOW__CORE__REMOTE_LOGGING: "False"
+      AIRFLOW__SCHEDULER__PARSE_DAG_ONLY_ON_IMPORT: "True"
+      # 여기도 동일하게 버전 고정
+      _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python pyupbit apache-airflow-providers-apache-kafka==1.4.0"
+    command: bash -c "chown -R airflow:root /opt/airflow/logs && airflow scheduler"
     volumes:
       - ./dags:/opt/airflow/dags
+      - airflow-logs-volume:/opt/airflow/logs
     restart: always
 
   zookeeper:
@@ -80,14 +90,18 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "19092:19092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_LISTENERS: "INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:9092,EXTERNAL://localhost:19092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
 volumes:
   postgres-db-volume:
+  airflow-logs-volume:

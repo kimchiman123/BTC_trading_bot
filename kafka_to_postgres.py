@@ -4,7 +4,7 @@ from kafka import KafkaConsumer
 import psycopg
 from psycopg.rows import tuple_row
 
-KAFKA_BOOTSTRAP_SERVERS = ["localhost:9092"] # Kafka 브로커 주소
+KAFKA_BOOTSTRAP_SERVERS = ["localhost:19092"] # Kafka 브로커 주소
 KAFKA_TOPIC = "btc-1m-candle" # 구독할 토픽 이름
 
 # Postgres 연결 정보
