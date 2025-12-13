@@ -1,0 +1,41 @@
+# Model files
+*.joblib
+xgb_final_model.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive files
+upbit_key.txt
+*.key
+*.pem
+
+# Data files
+*.csv
+*.parquet
+data/
