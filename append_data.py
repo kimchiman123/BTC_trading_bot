@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 # ===== DB 설정 =====
 PG_CONN_INFO = {
-    "host": "localhost",
+    "host": "postgres",
     "port": 5432,
     "dbname": "airflow",
     "user": "airflow",

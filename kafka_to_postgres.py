@@ -1,14 +1,13 @@
 import json
 from datetime import datetime
 from kafka import KafkaConsumer
-import psycopg
-from psycopg.rows import tuple_row
+import psycopg2
 
-KAFKA_BOOTSTRAP_SERVERS = ["localhost:19092"] # Kafka 브로커 주소
+KAFKA_BOOTSTRAP_SERVERS = ["kafka:19092"] # Kafka - Cloud용
 KAFKA_TOPIC = "btc-1m-candle" # 구독할 토픽 이름
 
 # Postgres 연결 정보
-PG_HOST = "localhost"
+PG_HOST = "postgres"
 PG_PORT = "5432"
 PG_DB = "airflow"
 PG_USER = "airflow"
@@ -31,13 +30,12 @@ def create_consumer():
 
 def create_pg_connection():
     '''Postgres 연결 생성'''
-    conn = psycopg.connect(
+    conn = psycopg2.connect(
         host=PG_HOST,
         port=PG_PORT,
         dbname=PG_DB,
         user=PG_USER,
         password=PG_PASSWORD,
-        row_factory=tuple_row,
     )
     conn.autocommit = False # 수동 커밋 (배치 insert 후 명시적 커밋)
     return conn

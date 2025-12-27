@@ -15,7 +15,7 @@ import append_data
 
 # DB 설정 (데이터 확인용)
 PG_CONN_INFO = {
-    "host": "localhost",
+    "host": "postgres",
     "port": 5432,
     "dbname": "airflow",
     "user": "airflow",

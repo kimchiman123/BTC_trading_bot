@@ -20,9 +20,8 @@ from custom_objective import FocalLossObjective
 # ==========================================
 # [설정] 업비트 API 및 전략 설정
 # ==========================================
-UPBIT_ACCESS_KEY = "키값입력"
-UPBIT_SECRET_KEY = "키값입력"
-
+UPBIT_ACCESS_KEY = ""
+UPBIT_SECRET_KEY = ""
 MAX_SLOTS = 3
 TICKER = "KRW-BTC"
 POSITION_FILE = "active_trades.json"
@@ -32,10 +31,10 @@ TRIPLE_BARRIER = {
     'span': 1440, 'pt': 3.0, 'sl': 0.7, 'time_limit': 1440
 }
 
-KAFKA_BOOTSTRAP_SERVERS = ["localhost:19092"]
+KAFKA_BOOTSTRAP_SERVERS = ["kafka:19092"]
 KAFKA_TOPIC = "btc-1m-candle"
 PG_CONN_INFO = {
-    "host": "localhost", "port": "5432", "dbname": "airflow", "user": "airflow", "password": "airflow"
+    "host": "postgres", "port": "5432", "dbname": "airflow", "user": "airflow", "password": "airflow"
 }
 
 class RealTimeBot:
