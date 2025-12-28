@@ -31,10 +31,14 @@ TRIPLE_BARRIER = {
     'span': 1440, 'pt': 3.0, 'sl': 0.7, 'time_limit': 1440
 }
 
-KAFKA_BOOTSTRAP_SERVERS = ["kafka:19092"]
+KAFKA_BOOTSTRAP_SERVERS = [f"{os.getenv('KAFKA_HOST', 'kafka')}:{os.getenv('KAFKA_PORT', '19092')}"]
 KAFKA_TOPIC = "btc-1m-candle"
 PG_CONN_INFO = {
-    "host": "postgres", "port": "5432", "dbname": "airflow", "user": "airflow", "password": "airflow"
+    "host": os.getenv("POSTGRES_HOST", "postgres"),
+    "port": os.getenv("POSTGRES_PORT", "5432"),
+    "dbname": os.getenv("POSTGRES_DB", "airflow"),
+    "user": os.getenv("POSTGRES_USER", "airflow"),
+    "password": os.getenv("POSTGRES_PASSWORD", "airflow"),
 }
 
 class RealTimeBot:
@@ -468,6 +472,39 @@ class RealTimeBot:
         print(f"   ㄴ 실전 TH: {threshold:.4f} | 섀도우 TH: {shadow_threshold:.4f}")
         print(f"🚀 상태: {status_icon}")
         print(f"============================================================")
+
+        # [DB 저장] 예측 결과 및 상태 저장 (Upsert)
+        try:
+            # 텍스트 status 정제 (이모지 제거 등 단순화가 필요하면 여기서 처리)
+            # 여기서는 status_icon 값을 그대로 저장하거나, 요청대로 BUY/WATCH로 매핑
+            save_status = "WATCH"
+            if "BUY" in status_icon: save_status = "BUY"
+            
+            with psycopg2.connect(**PG_CONN_INFO) as conn:
+                with conn.cursor() as cur:
+                    # 이미 kafka_to_postgres가 넣었을 수도 있고 아닐 수도 있음.
+                    # ON CONFLICT 두 경우 모두 대응
+                    # prediction, status 컬럼이 DB에 존재해야 함 (ALTER TABLE 선행 필요)
+                    sql = """
+                        INSERT INTO btc_1m_candles 
+                        (ts, open, high, low, close, volume, value, prediction, status)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (ts) 
+                        DO UPDATE SET 
+                            prediction = EXCLUDED.prediction,
+                            status = EXCLUDED.status;
+                    """
+                    cur.execute(sql, (
+                        ts, 
+                        new_row['open'], new_row['high'], new_row['low'], new_row['close'], 
+                        new_row['volume'], new_row['value'],
+                        float(pred_prob), save_status
+                    ))
+                conn.commit()
+        except Exception as e:
+            # DB 컬럼이 없을 경우 에러가 날 수 있음 (Schema update 필요)
+            print(f"⚠️ [DB 저장 실패] {e}")
+
 
         if pred_prob > threshold:
             vol = df_calc['strat_volatility'].iloc[-1]

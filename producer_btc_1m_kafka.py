@@ -5,7 +5,9 @@ from datetime import datetime
 import pyupbit
 from kafka import KafkaProducer
 
-KAFKA_BOOTSTRAP_SERVERS = ["kafka:19092"]  # 소문자 localhost 권장
+import os
+
+KAFKA_BOOTSTRAP_SERVERS = [f"{os.getenv('KAFKA_HOST', 'kafka')}:{os.getenv('KAFKA_PORT', '19092')}"]  # 소문자 localhost 권장
 KAFKA_TOPIC = "btc-1m-candle"
 TICKER = "KRW-BTC"
 

@@ -1,17 +1,18 @@
 import json
+import os
 from datetime import datetime
 from kafka import KafkaConsumer
 import psycopg2
 
-KAFKA_BOOTSTRAP_SERVERS = ["kafka:19092"] # Kafka - Cloud용
+KAFKA_BOOTSTRAP_SERVERS = [f"{os.getenv('KAFKA_HOST', 'kafka')}:{os.getenv('KAFKA_PORT', '19092')}"] # Kafka - Cloud용
 KAFKA_TOPIC = "btc-1m-candle" # 구독할 토픽 이름
 
 # Postgres 연결 정보
-PG_HOST = "postgres"
-PG_PORT = "5432"
-PG_DB = "airflow"
-PG_USER = "airflow"
-PG_PASSWORD = "airflow"
+PG_HOST = os.getenv("POSTGRES_HOST", "postgres")
+PG_PORT = os.getenv("POSTGRES_PORT", "5432")
+PG_DB = os.getenv("POSTGRES_DB", "airflow")
+PG_USER = os.getenv("POSTGRES_USER", "airflow")
+PG_PASSWORD = os.getenv("POSTGRES_PASSWORD", "airflow")
 
 BATCH_SIZE = 1 # 1분마다 처리하므로, 1건씩 바로바로 INSERT
 
@@ -46,7 +47,12 @@ def insert_batch(conn, rows):
         INSERT INTO btc_1m_candles
         (ticker, ts, open, high, low, close, volume, value)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (ts) DO UPDATE SET
+            high = GREATEST(btc_1m_candles.high, EXCLUDED.high),
+            low = LEAST(btc_1m_candles.low, EXCLUDED.low),
+            close = EXCLUDED.close,
+            volume = EXCLUDED.volume,
+            value = EXCLUDED.value;
     """
     with conn.cursor() as cur:
         cur.executemany(sql, rows)

@@ -15,12 +15,52 @@ import append_data
 
 # DB 설정 (데이터 확인용)
 PG_CONN_INFO = {
-    "host": "postgres",
-    "port": 5432,
-    "dbname": "airflow",
-    "user": "airflow",
-    "password": "airflow",
+    "host": os.getenv("POSTGRES_HOST", "postgres"),
+    "port": os.getenv("POSTGRES_PORT", "5432"),
+    "dbname": os.getenv("POSTGRES_DB", "airflow"),
+    "user": os.getenv("POSTGRES_USER", "airflow"),
+    "password": os.getenv("POSTGRES_PASSWORD", "airflow"),
 }
+
+def init_db():
+    """
+    봇 실행 시 DB 테이블이 없으면 자동으로 생성합니다.
+    (prediction, status 컬럼 포함)
+    """
+    print("🛠 [Init] DB 테이블 점검 및 초기화...")
+    try:
+        conn = psycopg2.connect(**PG_CONN_INFO)
+        conn.autocommit = True
+        cur = conn.cursor()
+        
+        # 테이블 생성 쿼리 (BTC 1분봉 + 예측 결과)
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS btc_1m_candles (
+            ts TIMESTAMP PRIMARY KEY,
+            open FLOAT NOT NULL,
+            high FLOAT NOT NULL,
+            low FLOAT NOT NULL,
+            close FLOAT NOT NULL,
+            volume FLOAT,
+            value FLOAT,
+            prediction NUMERIC(10, 8),
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        cur.execute(create_table_sql)
+        
+        # 인덱스 생성 (옵션)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_btc_1m_ts ON btc_1m_candles(ts);")
+        
+        print("✅ [Init] btc_1m_candles 테이블 준비 완료.")
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"❌ [Init Error] DB 초기화 실패: {e}")
+        # DB 연결 실패 시 봇이 돌 수 없으므로 종료가 나을 수 있으나, 
+        # 여기서는 로그만 남기고 진행 시도
+
 
 def check_and_backfill():
     """
@@ -71,6 +111,9 @@ def run_realtime_bot():
     except Exception as e: print(f"[RealTime Bot] 에러: {e}")
 
 if __name__ == "__main__":
+    # 0. DB 테이블 자동 생성 (없을 경우)
+    init_db()
+
     # 1. [핵심] 프로세스 시작 전 데이터 점검 및 자동 주입
     check_and_backfill()
 
