@@ -33,22 +33,52 @@ def init_db():
         conn.autocommit = True
         cur = conn.cursor()
         
-        # 테이블 생성 쿼리 (BTC 1분봉 + 예측 결과)
+        # 테이블 생성 쿼리 (BTC 1분봉 + 예측 결과 + 보조 지표)
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS btc_1m_candles (
             ts TIMESTAMP PRIMARY KEY,
+            ticker TEXT,
             open FLOAT NOT NULL,
             high FLOAT NOT NULL,
             low FLOAT NOT NULL,
             close FLOAT NOT NULL,
             volume FLOAT,
             value FLOAT,
-            prediction NUMERIC(10, 8),
+            prediction FLOAT,
             status TEXT,
+            threshold FLOAT,
+            shadow_threshold FLOAT,
+            volatility FLOAT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         cur.execute(create_table_sql)
+        
+        # 필수 컬럼 및 타입 정의 (기존 테이블 마이그레이션용)
+        # prediction을 NUMERIC(10,8) -> FLOAT로 변경 요청이 있었으나, 
+        # 기존 컬럼 타입 변경은 복잡하므로 여기서는 '추가'에 집중.
+        # User requested: prediction (FLOAT), status (TEXT), threshold (FLOAT), shadow_threshold (FLOAT), volatility (FLOAT)
+        required_columns = {
+            "prediction": "FLOAT",
+            "status": "TEXT",
+            "threshold": "FLOAT",
+            "shadow_threshold": "FLOAT",
+            "volatility": "FLOAT",
+            "ticker": "TEXT"
+        }
+
+        print("🔍 [Init] 컬럼 상태 점검 및 자동 추가 시작...")
+        for col_name, col_type in required_columns.items():
+            try:
+                # 컬럼 추가 시도 (IF NOT EXISTS 구문이 PostgreSQL 9.6+ 지원)
+                alter_query = f"ALTER TABLE btc_1m_candles ADD COLUMN IF NOT EXISTS {col_name} {col_type};"
+                cur.execute(alter_query)
+            except Exception as e_alter:
+                print(f"⚠️ [Init Warning] 컬럼 '{col_name}' 추가 중 메시지: {e_alter}")
+                conn.rollback() # 오류 발생 시 롤백 후 계속 진행
+        
+        # 변경사항 커밋 (autocommit=True지만 명시적 확인)
+        # conn.commit()
         
         # 인덱스 생성 (옵션)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_btc_1m_ts ON btc_1m_candles(ts);")

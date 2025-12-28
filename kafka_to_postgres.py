@@ -45,8 +45,8 @@ def create_pg_connection():
 def insert_batch(conn, rows):
     sql = """
         INSERT INTO btc_1m_candles
-        (ticker, ts, open, high, low, close, volume, value)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (ts, open, high, low, close, volume, value)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (ts) DO UPDATE SET
             high = GREATEST(btc_1m_candles.high, EXCLUDED.high),
             low = LEAST(btc_1m_candles.low, EXCLUDED.low),
@@ -81,7 +81,6 @@ def main():
 
             # DB 삽입을 위한 튜플 생성
             row = (
-                candle["ticker"],
                 ts,
                 float(candle["open"]),
                 float(candle["high"]),

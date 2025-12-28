@@ -14,20 +14,19 @@ PG_CONN_INFO = {
 }
 
 def insert_candles_to_db(df):
+    # 에러 방지를 위해 ticker를 제외하고 ts(기본키)만 체크하도록 수정
     sql = """
-    INSERT INTO btc_1m_candles (ticker, ts, open, high, low, close, volume, value)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    ON CONFLICT (ticker, ts) DO NOTHING;
+    INSERT INTO btc_1m_candles (ts, open, high, low, close, volume, value)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (ts) DO NOTHING;
     """
     
     with psycopg2.connect(**PG_CONN_INFO) as conn:
         with conn.cursor() as cur:
             data_list = []
             for _, row in df.iterrows():
-                # DB에는 KST 시간을 저장
                 ts = row['timestamp_kst'].to_pydatetime()
                 data_list.append((
-                    'KRW-BTC', 
                     ts, 
                     float(row['open']), float(row['high']), float(row['low']), float(row['close']), 
                     float(row['volume']), float(row['value'])
@@ -36,11 +35,10 @@ def insert_candles_to_db(df):
             cur.executemany(sql, data_list)
         conn.commit()
     
-    # 로그용
     min_kst = df['timestamp_kst'].min()
     max_kst = df['timestamp_kst'].max()
     print(f"✅ {len(df)}개 처리 | KST 기간: {min_kst} ~ {max_kst}")
-    return min_kst # 가장 과거 시간을 반환 (참고용)
+    return min_kst
 
 def fetch_upbit_candles_correctly(target_count=3000):
     url = "https://api.upbit.com/v1/candles/minutes/1"

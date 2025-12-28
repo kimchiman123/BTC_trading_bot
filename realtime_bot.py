@@ -368,7 +368,7 @@ class RealTimeBot:
 
         if len(self.df_window) > 50000: self.df_window = self.df_window.iloc[-50000:]
         
-        MIN_REQUIRED = 300 # 테스트용으로 낮춘 상태 유지
+        MIN_REQUIRED = 1440 # 다시 1440으로 설정
         if len(self.df_window) < MIN_REQUIRED:
             if len(self.df_window) % 100 == 0:
                 print(f"⏳ [데이터 수집] {len(self.df_window)}/{MIN_REQUIRED}")
@@ -404,11 +404,11 @@ class RealTimeBot:
         for col in frac_cols:
             df_final[f"{col}_fd{FRAC_D}"] = frac_diff_ffd(df_final[col], d=FRAC_D, thres=THRES)
 
-        # [수정] 합의된 0.45~0.55 범위 적용
-        threshold = calculate_dynamic_threshold(df_final, min_threshold=0.45, max_threshold=0.55)
-        
-        # [Shadow] 섀도우 임계값 계산 (-0.15)
-        shadow_threshold = threshold - 0.15
+        # 수정 - 0.40~0.55 범위 적용
+        threshold = calculate_dynamic_threshold(df_final, min_threshold=0.40, max_threshold=0.55)
+
+        # [Shadow] 섀도우 임계값 계산 (-0.20)
+        shadow_threshold = threshold - 0.20
         
         MODEL_FEATURES = [
             'open', 'high', 'low', 'close', 'volume', 'value',
@@ -480,6 +480,14 @@ class RealTimeBot:
             save_status = "WATCH"
             if "BUY" in status_icon: save_status = "BUY"
             
+            # PnL 및 승률 계산
+            total_trades = self.win_count + self.loss_count
+            win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0.0
+
+            # 변동성 값 안전하게 가져오기
+            volatility_val = df_calc['strat_volatility'].iloc[-1]
+            if pd.isna(volatility_val): volatility_val = 0.0
+
             with psycopg2.connect(**PG_CONN_INFO) as conn:
                 with conn.cursor() as cur:
                     # 이미 kafka_to_postgres가 넣었을 수도 있고 아닐 수도 있음.
@@ -487,18 +495,22 @@ class RealTimeBot:
                     # prediction, status 컬럼이 DB에 존재해야 함 (ALTER TABLE 선행 필요)
                     sql = """
                         INSERT INTO btc_1m_candles 
-                        (ts, open, high, low, close, volume, value, prediction, status)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        (ts, open, high, low, close, volume, value, prediction, status, threshold, shadow_threshold, volatility)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (ts) 
                         DO UPDATE SET 
                             prediction = EXCLUDED.prediction,
-                            status = EXCLUDED.status;
+                            status = EXCLUDED.status,
+                            threshold = EXCLUDED.threshold,
+                            shadow_threshold = EXCLUDED.shadow_threshold,
+                            volatility = EXCLUDED.volatility;
                     """
                     cur.execute(sql, (
                         ts, 
                         new_row['open'], new_row['high'], new_row['low'], new_row['close'], 
                         new_row['volume'], new_row['value'],
-                        float(pred_prob), save_status
+                        float(pred_prob), save_status,
+                        float(threshold), float(shadow_threshold), float(volatility_val)
                     ))
                 conn.commit()
         except Exception as e:
