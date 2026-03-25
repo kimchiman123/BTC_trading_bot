@@ -33,39 +33,34 @@
 
 ### 아키텍처 다이어그램
 
-```mermaid
-graph LR
-    A["🔌 Upbit API<br/>(WebSocket)"] -->|"① 실시간 1분봉<br/>시세 데이터"| B["📡 Kafka Producer<br/>(producer_btc_1m_kafka.py)"]
-    B -->|"② 스트리밍<br/>데이터 발행"| C{"🔀 Kafka Broker"}
-    
-    C -->|"③ 스트리밍<br/>데이터 소비"| D["📥 Kafka Consumer<br/>(kafka_to_postgres.py)"]
-    D -->|"전처리 및<br/>결과 적재"| E[("🗄️ PostgreSQL")]
-    
-    C -->|"실시간 메시지<br/>구독"| F["🤖 Trading Bot<br/>(realtime_bot.py)"]
-    E -->|"④ 과거 데이터 및<br/>예측 시그널 조회"| F
-    
-    F -->|"⑤ 매수/매도<br/>주문 실행"| A2["💱 Upbit Exchange<br/>(Order API)"]
-    F -->|"예측 결과<br/>저장"| E
+<p align="center">
+  <img src="assets/architecture.png" alt="System Architecture Diagram" width="800"/>
+</p>
 
-    E -->|"⑥ 실시간 모니터링<br/>데이터 조회"| G["📊 Streamlit<br/>Dashboard UI"]
+### 📋 Component Description
 
-    style A fill:#1a73e8,stroke:#1557b0,color:#fff
-    style A2 fill:#1a73e8,stroke:#1557b0,color:#fff
-    style C fill:#231F20,stroke:#fff,color:#fff
-    style E fill:#336791,stroke:#264d73,color:#fff
-    style F fill:#ff6600,stroke:#cc5200,color:#fff
-    style G fill:#ff4b4b,stroke:#cc3c3c,color:#fff
-```
+> 아키텍처 다이어그램의 각 컴포넌트와 실제 소스 코드의 매핑입니다.
+
+| 다이어그램 컴포넌트 | 역할 | 관련 파일 |
+|:---:|:---|:---|
+| **Upbit API (WebSocket)** | 실시간 1분봉 시세 데이터의 원천 소스 | — (외부 API) |
+| **Kafka Producer** | 웹소켓으로 수신한 시세 데이터를 Kafka Topic으로 발행 | `producer_btc_1m_kafka.py` |
+| **Kafka Broker** | Producer와 Consumer 간 메시지 중개 (Pub/Sub) | Docker Compose 내 서비스 |
+| **Kafka Consumer** | 스트리밍 데이터를 구독하여 PostgreSQL에 실시간 적재 | `kafka_to_postgres.py` |
+| **PostgreSQL** | 시세 데이터, 예측 결과, 거래 이력 저장소 | `apply_db_schema.py` |
+| **Trading Bot** | Kafka 메시지 + DB 과거 데이터를 결합하여 XGBoost 모델로 매매 결정 | `realtime_bot.py` |
+| **Streamlit Dashboard UI** | 파이프라인 상태, PnL, 승률 등 실시간 모니터링 | `dashboard.py` |
+| **Orchestrator** *(다이어그램 외)* | 모든 프로세스의 생명 주기 관리, 헬스체크 및 자동 재시작 | `main.py` |
 
 ### 🔹 데이터 흐름 (Data Flow)
 
-| 단계 | 컴포넌트 | 설명 |
-|------|----------|------|
-| **Ingestion** | `producer_btc_1m_kafka.py` | 업비트 웹소켓을 통해 실시간 데이터를 수집하여 Kafka Topic으로 발행 |
-| **Storage** | `kafka_to_postgres.py` | 스트리밍 데이터를 구독하여 PostgreSQL에 실시간 적재 수행 |
-| **Inference** | `realtime_bot.py` | Kafka 메시지와 DB의 과거 데이터를 결합(Merge)하여 지표를 생성하고 XGBoost 모델로 매매 여부 결정 |
-| **Orchestration** | `main.py` | Python `multiprocessing`으로 각 컴포넌트를 독립 프로세스로 관리, 헬스체크 및 자동 재시작 |
-| **Monitoring** | `dashboard.py` | Streamlit 대시보드를 통해 파이프라인 상태 및 수익률 시각화 |
+| 흐름 번호 | 단계 | 설명 |
+|:---:|:---|:---|
+| **①** | **Ingestion** | 업비트 웹소켓 → Kafka Producer → Kafka Broker로 실시간 1분봉 데이터 발행 |
+| **②③** | **Storage** | Kafka Consumer가 스트리밍 데이터를 구독하여 전처리 후 PostgreSQL에 적재 |
+| **④** | **Inference** | Trading Bot이 DB의 과거 데이터 및 예측 시그널을 조회하여 다중 타임프레임 지표 생성 → XGBoost 모델로 매매 결정 |
+| **⑤** | **Execution** | 매수/매도 주문을 Upbit Exchange Order API로 실행 |
+| **⑥** | **Monitoring** | Streamlit 대시보드가 DB를 조회하여 파이프라인 상태 및 수익률 시각화 |
 
 ---
 
