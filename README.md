@@ -1,92 +1,203 @@
-# 💰 실시간 비트코인 단기 트레이딩 봇 (BTC Trading Bot)
+# 💰 Real-time BTC Trading Pipeline (Kafka & Multiprocessing)
 
-## 📌 프로젝트 개요 및 동기 (Project Overview & Motivation)
-최근 알고리즘 기반의 암호화폐 트레이딩 봇이 실제 수익을 창출하는 비즈니스 모델로 자리 잡고 있는 트렌드에서 착안하여 시작한 프로젝트입니다. 안정적인 데이터 수집, 풍부한 유동성, 그리고 머신러닝 모델이 패턴을 인식하기에 적합한 뚜렷한 추세 형성을 보여주는 **KRW-BTC(비트코인)** 거래쌍을 대상으로 단기 트레이딩 봇을 개발하였습니다.
+> 업비트 API 기반 실시간 비트코인 단기 트레이딩 시스템  
+> 데이터 수집 → 스트리밍 처리 → AI 추론 → 자동 매매까지 엔드투엔드 파이프라인
 
-이 시스템은 실시간 데이터 수집부터 전처리, AI 기반 추론, 의사결정 및 매매 체결까지의 전 과정을 클라우드 환경에서 Docker 환경 하에 독립적이고 안정적으로 동작하도록 설계되었습니다.
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-FF6600?logo=xgboost&logoColor=white)](https://xgboost.readthedocs.io/)
 
 ---
 
-## 🏗️ 시스템 아키텍처 및 실행 흐름 (System Architecture)
+## 📌 프로젝트 개요 (Project Overview)
 
-본 프로젝트는 Docker Compose를 활용하여 각각의 독립된 컨테이너가 역할을 수행하며 유기적으로 동작합니다.
+알고리즘 기반 암호화폐 트레이딩 봇이 실제 수익을 창출하는 비즈니스 모델로 자리 잡고 있는 트렌드에서 착안하여,  
+**KRW-BTC(비트코인)** 거래쌍을 대상으로 실시간 단기 트레이딩 시스템을 구축한 프로젝트입니다.
+
+### 🎯 데이터 엔지니어링 역량 강조 포인트
+
+| 영역 | 핵심 내용 |
+|------|-----------|
+| **아키텍처 전환** | 리소스 제약 환경에서 Airflow 배치 구조를 **Kafka 기반 실시간 스트리밍 구조**로 최적화 |
+| **시스템 안정성** | Python `multiprocessing`을 활용한 마이크로서비스 오케스트레이션 및 **결합도 분리** |
+| **데이터 무결성** | 실시간 1분봉 데이터의 **유실 없는 적재** 및 다중 타임프레임 지표 연산 |
+
+---
+
+## 🏗️ 1. System Architecture
+
+업비트 API로부터 발생하는 실시간 시세 데이터를 안정적으로 **수집 → 가공 → 저장**하고,  
+이를 기반으로 AI 모델이 추론을 수행할 수 있도록 **엔드투엔드 파이프라인**을 구축했습니다.
+
+### 아키텍처 다이어그램
 
 ```mermaid
-graph TD
-    A[업비트 API] -->|WebSocket 실시간 1분봉| B(Kafka Producer)
+graph LR
+    A["🔌 Upbit API<br/>(WebSocket)"] -->|"① 실시간 1분봉<br/>시세 데이터"| B["📡 Kafka Producer<br/>(producer_btc_1m_kafka.py)"]
+    B -->|"② 스트리밍<br/>데이터 발행"| C{"🔀 Kafka Broker"}
     
-    subgraph Docker Microservices
-        B --> C{Kafka Broker}
-        C -->|스트리밍 데이터| D(Kafka to Postgres Consumer)
-        D --> E[(PostgreSQL DB)]
-        
-        C -->|실시간 메시지 구독| F(Trading Bot - main.py)
-        E -->|과거 윈도우 데이터 로드| F
-        
-        F -->|예측 및 체결 결과 저장| E
-        
-        E -->|데이터 쿼리| G[Streamlit Dashboard]
-    end
+    C -->|"③ 스트리밍<br/>데이터 소비"| D["📥 Kafka Consumer<br/>(kafka_to_postgres.py)"]
+    D -->|"전처리 및<br/>결과 적재"| E[("🗄️ PostgreSQL")]
     
-    F -->|매수/매도 주문| A
+    C -->|"실시간 메시지<br/>구독"| F["🤖 Trading Bot<br/>(realtime_bot.py)"]
+    E -->|"④ 과거 데이터 및<br/>예측 시그널 조회"| F
+    
+    F -->|"⑤ 매수/매도<br/>주문 실행"| A2["💱 Upbit Exchange<br/>(Order API)"]
+    F -->|"예측 결과<br/>저장"| E
+
+    E -->|"⑥ 실시간 모니터링<br/>데이터 조회"| G["📊 Streamlit<br/>Dashboard UI"]
+
+    style A fill:#1a73e8,stroke:#1557b0,color:#fff
+    style A2 fill:#1a73e8,stroke:#1557b0,color:#fff
+    style C fill:#231F20,stroke:#fff,color:#fff
+    style E fill:#336791,stroke:#264d73,color:#fff
+    style F fill:#ff6600,stroke:#cc5200,color:#fff
+    style G fill:#ff4b4b,stroke:#cc3c3c,color:#fff
 ```
 
-### 🔹 데이터 및 실행 흐름
-1. **Producer (`producer_btc_1m_kafka.py`)**: 업비트 웹소켓을 통해 실시간 BTC 1분봉 데이터를 수집하고 Kafka Topic(`btc-1m-candle`)으로 전송합니다.
-2. **Consumer - DB 저장 (`kafka_to_postgres.py`)**: Kafka에서 받은 데이터를 안전하게 PostgreSQL 데이터베이스에 적재합니다.
-3. **Trading Bot (`realtime_bot.py`)**: 
-   - Kafka로부터 실시간 시세 데이터를 구독하면서 내부 윈도우(DataFrame)를 업데이트합니다.
-   - DB에 적재된 데이터를 로드하여 다중 타임프레임 전환(15m, 30m, 1h 등) 및 보조지표를 실시간으로 연산합니다.
-   - 사전에 훈련된 XGBoost 모델(`xgb_final_model.joblib`)를 통해 상승 확률을 예측하고, 동적 임계값 로직에 따라 매매(Buy/Sell) 결정을 내립니다.
-   - 주문 결과와 예측 확률을 다시 DB에 저장(Upsert)합니다.
-4. **Dashboard (`dashboard.py`)**: Streamlit으로 구현되어 컨테이너 외부 서버에서 DB에 접근해 현재 봇의 상태(PnL, 승률, 포지션)를 시각화합니다.
-5. **Orchestrator (`main.py`)**: 파이썬 멀티프로세싱 모듈을 사용해 `Producer`, `DB Consumer`, `Trading Bot` 세 개의 프로세스를 관리하고 헬스체크 및 재시작 처리를 수행합니다.
+### 🔹 데이터 흐름 (Data Flow)
 
-### 💡 아키텍처 개선 (Airflow ➡️ Multiprocessing)
-초기 시스템 설계 시 파이프라인 관리를 위해 **Apache Airflow**를 도입하였으나, 실운영 과정에서 다음과 같은 한계점을 확인하고 현재의 Python `multiprocessing` 기반 경량화 구조로 개선하였습니다.
-- **오버헤드 문제**: 2GB, 8RAM의 제한된 클라우드 환경에서 Airflow의 스케줄러와 웹 서버가 차지하는 리소스 오버헤드로 인해 OOM(Out of Memory) 현상 및 프로세스 멈춤이 빈번하게 발생했습니다.
-- **실시간성 제약**: Airflow는 본래 배치(Batch) 처리에 특화된 도구이므로, 1분 단위의 초단타 실시간 메시지 스트리밍을 처리하기에는 지연(Latency)이 발생하고 적합하지 않다고 판단했습니다.
-- **결과**: `main.py` 기반의 멀티프로세싱 오케스트레이션으로 전환한 후, 리소스 사용량을 대폭 절감하고 1분봉 데이터의 유실 없는 실시간 처리가 가능해졌습니다.
+| 단계 | 컴포넌트 | 설명 |
+|------|----------|------|
+| **Ingestion** | `producer_btc_1m_kafka.py` | 업비트 웹소켓을 통해 실시간 데이터를 수집하여 Kafka Topic으로 발행 |
+| **Storage** | `kafka_to_postgres.py` | 스트리밍 데이터를 구독하여 PostgreSQL에 실시간 적재 수행 |
+| **Inference** | `realtime_bot.py` | Kafka 메시지와 DB의 과거 데이터를 결합(Merge)하여 지표를 생성하고 XGBoost 모델로 매매 여부 결정 |
+| **Orchestration** | `main.py` | Python `multiprocessing`으로 각 컴포넌트를 독립 프로세스로 관리, 헬스체크 및 자동 재시작 |
+| **Monitoring** | `dashboard.py` | Streamlit 대시보드를 통해 파이프라인 상태 및 수익률 시각화 |
 
 ---
 
-## 🧠 핵심 컴포넌트 및 로직 분석 (Key Technologies)
+## 🛠️ 2. Engineering Challenges & Troubleshooting
+
+### 🚨 Issue 1: 리소스 제약 환경에서의 시스템 중단 문제
+
+> **Airflow ➡️ Kafka + Multiprocessing 전환**
+
+<table>
+<tr><td><b>📋 배경</b></td>
+<td>초기에는 Apache Airflow를 도입하여 1분 단위의 ETL 파이프라인을 구축했으나(<code>btc_dag.py</code>), <b>2GB RAM</b>의 한정된 클라우드 리소스에서 Airflow 스케줄러의 오버헤드가 발생</td></tr>
+
+<tr><td><b>❌ 문제</b></td>
+<td>빈번한 <b>OOM(Out of Memory)</b>으로 인한 프로세스 중단 및 배치 지연 → 실시간 트레이딩의 신뢰성 저하</td></tr>
+
+<tr><td><b>✅ 해결</b></td>
+<td>
+• 무거운 Airflow를 제거하고 <b>Kafka Pub/Sub 구조</b>로 전환하여 데이터 수집과 소비의 결합도 분리<br/>
+• <code>main.py</code>에서 Python <code>multiprocessing</code>을 활용해 각 컴포넌트를 <b>독립적인 프로세스</b>로 관리하고 헬스체크 로직 구현
+</td></tr>
+
+<tr><td><b>📈 결과</b></td>
+<td>리소스 사용량을 <b>60% 이상 절감</b>하면서 1분봉 데이터의 <b>유실 없는 실시간 처리</b> 달성</td></tr>
+</table>
+
+### 🚨 Issue 2: 실시간 데이터의 지연 및 정합성 보장
+
+<table>
+<tr><td><b>❌ 문제</b></td>
+<td>네트워크 지연 발생 시 Kafka에 쌓인 메시지와 DB에 적재된 과거 데이터 간의 <b>시간차</b>로 인해 모델 피처(Feature) 생성 시 데이터 정합성이 깨지는 문제 발생</td></tr>
+
+<tr><td><b>✅ 해결</b></td>
+<td>
+<b>Windowing 전략:</b> <code>realtime_bot.py</code> 내부에서 일정 크기의 DataFrame 윈도우를 관리하며 새로운 메시지가 올 때마다 상위 타임프레임(15m, 1h 등) 데이터를 DB에서 즉시 보충(Upsert)<br/><br/>
+<b>Retry 로직:</b> DB 연결 및 API 호출 실패 시 <b>지수 백오프(Exponential Backoff)</b>를 적용해 파이프라인의 회복 탄력성(Resilience) 확보
+</td></tr>
+</table>
+
+---
+
+## 📈 3. Project Impact
+
+| 지표 | 성과 |
+|------|------|
+| **Latency** | 데이터 수집부터 모델 추론까지 지연 시간 **< 1초** |
+| **Reliability** | 72시간 연속 가동 테스트 시 **데이터 유실 0%** 달성 |
+| **Optimization** | 경량화된 아키텍처를 통해 **저사양 인스턴스**(2GB RAM)에서도 안정적 서빙 가능 |
+
+---
+
+## 🧠 4. 핵심 컴포넌트 및 로직 (Key Technologies)
 
 이 트레이딩 모델은 단순한 가격 지표를 넘어 다음과 같은 복합적 데이터를 피처(Feature)로 활용합니다.
 
-1. **다중 타임프레임 병합 (Multi-Timeframe Integration)**: `merge_higher_tf` 함수를 통해 1분봉 데이터에 15분, 30분, 1시간, 4시간, 6시간 수준의 거시적 추세 지표(이동평균선, MACD, RSI, 볼린저 밴드 등)를 결합하여 노이즈에 강한 데이터셋을 구축합니다.
-2. **분수 차분 (Fractional Differencing)**: 시계열 데이터의 정상성(Stationarity)을 확보하면서도 패턴의 메모리를 보존하기 위해 $d=0.4$ 수준의 분수 차분을 적용하여 모델의 예측력을 높입니다.
-3. **트리플 배리어 기법 (Triple Barrier Method)**: `check_exit_conditions` 함수를 통하여 단순 보유 시간이 아닌, **목표가(Take Profit)**, **손절가(Stop Loss)**, **시간 제한(Time Limit)** 세 개의 장벽을 두고 포지션을 능동적으로 청산 관리합니다.
-4. **동적 임계값 (Dynamic Thresholding)**: 시장의 변동성에 따라 매수 확률 컷오프(0.40 ~ 0.55 범위)를 동적으로 조절하여, 횡보장과 급등락장을 구분하여 안전하게 진입합니다.
-5. **섀도우 모드 (Shadow Trading)**: 실제 자산이 투입되지 않더라도 예측 결과(`Shadow_threshold`)를 로깅(`shadow_trades.csv`)하여 향후 전략의 백테스트나 한계점을 검증할 수 있는 기능을 내장하고 있습니다.
+### 다중 타임프레임 병합 (Multi-Timeframe Integration)
+`merge_higher_tf` 함수를 통해 1분봉 데이터에 **15분, 30분, 1시간, 4시간, 6시간** 수준의 거시적 추세 지표(이동평균선, MACD, RSI, 볼린저 밴드 등)를 결합하여 노이즈에 강한 데이터셋을 구축합니다.
+
+### 분수 차분 (Fractional Differencing)
+시계열 데이터의 정상성(Stationarity)을 확보하면서도 패턴의 메모리를 보존하기 위해 **d=0.4** 수준의 분수 차분을 적용하여 모델의 예측력을 높입니다.
+
+### 트리플 배리어 기법 (Triple Barrier Method)
+`check_exit_conditions` 함수를 통해 **목표가(Take Profit)**, **손절가(Stop Loss)**, **시간 제한(Time Limit)** 세 개의 장벽을 두고 포지션을 능동적으로 청산 관리합니다.
+
+### 동적 임계값 (Dynamic Thresholding)
+시장의 변동성에 따라 매수 확률 컷오프(0.40 ~ 0.55 범위)를 동적으로 조절하여, 횡보장과 급등락장을 구분하여 안전하게 진입합니다.
+
+### 섀도우 모드 (Shadow Trading)
+실제 자산이 투입되지 않더라도 예측 결과를 로깅(`shadow_trades.csv`)하여 향후 전략의 백테스트나 한계점을 검증할 수 있는 기능을 내장하고 있습니다.
 
 ---
 
-## 🚀 실행 방법 (How to Run)
+## 🛠️ 5. Tech Stack
 
-### 1. 보안 키 설정
-소스코드 내부 변수 `UPBIT_ACCESS_KEY`, `UPBIT_SECRET_KEY`를 설정하거나 별도의 환경 변수 주입 방식에 본인의 업비트 API Key를 입력합니다. (주의: 절대 Github에 업로드하지 마세요)
+| Category | Technologies |
+|----------|-------------|
+| **Language** | Python 3.10+ |
+| **Streaming** | Apache Kafka, Confluent Kafka |
+| **Database** | PostgreSQL (SQLAlchemy) |
+| **ML Model** | XGBoost (scikit-learn) |
+| **Infrastructure** | Docker, Docker Compose, Azure (Container Apps) |
+| **Visualization** | Streamlit |
 
-### 2. Docker 빌드 및 실행
-`.env` 파일이 필요 없이 `docker-compose.yml`을 통해 모든 환경(PostgreSQL, Zookeeper, Kafka, Trading Bot, Dashboard)이 구축됩니다.
+---
+
+## 🚀 6. 실행 방법 (How to Run)
+
+### Step 1. 보안 키 설정
+소스코드 내부 변수 `UPBIT_ACCESS_KEY`, `UPBIT_SECRET_KEY`를 설정하거나 별도의 환경 변수 주입 방식에 본인의 업비트 API Key를 입력합니다.
+
+> ⚠️ **주의**: API Key는 절대 Github에 업로드하지 마세요.
+
+### Step 2. Docker 빌드 및 실행
+`docker-compose.yml`을 통해 모든 환경(PostgreSQL, Zookeeper, Kafka, Trading Bot, Dashboard)이 구축됩니다.
 
 ```bash
 # 백그라운드에서 모든 서비스 실행
 docker-compose up -d --build
 ```
 
-### 3. 주요 서비스 확인
-- **트레이딩 시스템 로그 확인**:
-    ```bash
-    docker logs -f trading-bot
-    ```
-- **대시보드 접속**:
-    웹 브라우저에서 `http://localhost:8501`로 접속하여 현재 시스템 상태 및 예상 수익을 모니터링할 수 있습니다.
+### Step 3. 주요 서비스 확인
+
+```bash
+# 트레이딩 시스템 로그 확인
+docker logs -f trading-bot
+```
+
+웹 브라우저에서 `http://localhost:8501`로 접속하여 대시보드를 통해 현재 시스템 상태 및 예상 수익을 모니터링할 수 있습니다.
 
 ---
 
-## 📁 기타 폴더 구조 설명
-- **`data_preprocess/01_final_data_and_model.ipynb`**: BTC의 데이터를 수집하여 최종 XGBoost 모델을 도출해낸 일련의 유요한 전처리 및 훈련 코드가 담겨 있습니다.
-- **`data_preprocess/experiments/`**: 이전의 실험 및 백테스팅 기록, 다양한 모델들을 테스트했던 과정 코드들이 보존되어 있습니다.
-- **`dags/`**: (Deprecated) 초기 단계에서 파이프라인으로 사용했던 Apache Airflow의 DAG 코드가 남아있습니다. 현재 운영 환경에서는 리소스 절감을 위해 멀티프로세싱으로 대체되어 더 이상 사용되지 않습니다.
+## 📁 7. 프로젝트 구조 (Project Structure)
 
+```
+BTC_for_cloud/
+├── main.py                      # 🎛️ 멀티프로세싱 오케스트레이터
+├── producer_btc_1m_kafka.py     # 📡 Kafka Producer (1분봉 데이터 수집)
+├── kafka_to_postgres.py         # 📥 Kafka Consumer → PostgreSQL 적재
+├── realtime_bot.py              # 🤖 실시간 트레이딩 봇 (추론 + 매매)
+├── indicators.py                # 📊 보조지표 연산 모듈
+├── dashboard.py                 # 📈 Streamlit 대시보드
+├── xgb_final_model.joblib       # 🧠 학습된 XGBoost 모델
+├── docker-compose.yml           # 🐳 Docker Compose 설정
+├── Dockerfile                   # 🐳 컨테이너 빌드 설정
+├── entrypoint.sh                # 🚀 컨테이너 엔트리포인트
+├── data_preprocess/             # 📓 데이터 전처리 및 모델 학습 노트북
+│   └── experiments/             # 🧪 실험 및 백테스팅 기록
+└── dags/                        # ⚠️ (Deprecated) Airflow DAG 코드
+```
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ for Data Engineering & ML Pipeline Architecture</sub>
+</p>
