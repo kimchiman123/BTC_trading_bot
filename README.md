@@ -26,6 +26,19 @@
 
 ---
 
+## 🛠️ Tech Stack
+
+| Category | Technologies |
+|----------|-------------|
+| **Language** | Python 3.10+ |
+| **Streaming** | Apache Kafka, Confluent Kafka |
+| **Database** | PostgreSQL (SQLAlchemy) |
+| **ML Model** | XGBoost (scikit-learn) |
+| **Infrastructure** | Docker, Docker Compose, Azure VM |
+| **Visualization** | Streamlit |
+
+---
+
 ## 🏗️ 1. System Architecture
 
 업비트 API로부터 발생하는 실시간 시세 데이터를 안정적으로 **수집 → 가공 → 저장**하고,  
@@ -183,20 +196,7 @@ Docker Compose 기반으로 Zookeeper, Kafka Broker, PostgreSQL, Trading Bot, St
 
 ---
 
-## 🛠️ 8. Tech Stack
-
-| Category | Technologies |
-|----------|-------------|
-| **Language** | Python 3.10+ |
-| **Streaming** | Apache Kafka, Confluent Kafka |
-| **Database** | PostgreSQL (SQLAlchemy) |
-| **ML Model** | XGBoost (scikit-learn) |
-| **Infrastructure** | Docker, Docker Compose, Azure VM |
-| **Visualization** | Streamlit |
-
----
-
-## 🚀 9. 실행 방법 (How to Run)
+## 🚀 8. 실행 방법 (How to Run)
 
 ### Step 1. 보안 키 설정
 소스코드 내부 변수 `UPBIT_ACCESS_KEY`, `UPBIT_SECRET_KEY`를 설정하거나 별도의 환경 변수 주입 방식에 본인의 업비트 API Key를 입력합니다.
@@ -222,73 +222,7 @@ docker logs -f trading-bot
 
 ---
 
-## 📁 10. 프로젝트 구조 (Project Structure)
-
-```
-BTC_for_cloud/
-├── main.py                      # 🎛️ 멀티프로세싱 오케스트레이터
-├── producer_btc_1m_kafka.py     # 📡 Kafka Producer (1분봉 데이터 수집)
-├── kafka_to_postgres.py         # 📥 Kafka Consumer → PostgreSQL 적재
-├── realtime_bot.py              # 🤖 실시간 트레이딩 봇 (추론 + 매매)
-├── indicators.py                # 📊 보조지표 연산 모듈
-├── dashboard.py                 # 📈 Streamlit 대시보드
-├── xgb_final_model.joblib       # 🧠 학습된 XGBoost 모델
-├── docker-compose.yml           # 🐳 Docker Compose 설정
-├── Dockerfile                   # 🐳 컨테이너 빌드 설정
-├── entrypoint.sh                # 🚀 컨테이너 엔트리포인트
-├── data_preprocess/             # 📓 데이터 전처리 및 모델 학습 노트북
-│   └── experiments/             # 🧪 실험 및 백테스팅 기록
-└── dags/                        # ⚠️ (Deprecated) Airflow DAG 코드
-```
-
----
-
-<p align="center">
-  <sub>Built with ❤️ for Data Engineering & ML Pipeline Architecture</sub>
-</p>�세 지표(이동평균선, MACD, RSI, 볼린저 밴드 등)를 결합하여 노이즈에 강한 데이터셋을 구축합니다.
-
----
-
-## 🛠️ 5. Tech Stack
-
-| Category | Technologies |
-|----------|-------------|
-| **Language** | Python 3.10+ |
-| **Streaming** | Apache Kafka, Confluent Kafka |
-| **Database** | PostgreSQL (SQLAlchemy) |
-| **ML Model** | XGBoost (scikit-learn) |
-| **Infrastructure** | Docker, Docker Compose, Azure (Container Apps) |
-| **Visualization** | Streamlit |
-
----
-
-## 🚀 6. 실행 방법 (How to Run)
-
-### Step 1. 보안 키 설정
-소스코드 내부 변수 `UPBIT_ACCESS_KEY`, `UPBIT_SECRET_KEY`를 설정하거나 별도의 환경 변수 주입 방식에 본인의 업비트 API Key를 입력합니다.
-
-> ⚠️ **주의**: API Key는 절대 Github에 업로드하지 마세요.
-
-### Step 2. Docker 빌드 및 실행
-`docker-compose.yml`을 통해 모든 환경(PostgreSQL, Zookeeper, Kafka, Trading Bot, Dashboard)이 구축됩니다.
-
-```bash
-# 백그라운드에서 모든 서비스 실행
-docker-compose up -d --build
-```
-
-### Step 3. 주요 서비스 확인
-
-```bash
-# 트레이딩 시스템 로그 확인
-docker logs -f trading-bot
-```
-
-웹 브라우저에서 `http://localhost:8501`로 접속하여 대시보드를 통해 현재 시스템 상태 및 예상 수익을 모니터링할 수 있습니다.
-
----
-
-## 📁 7. 프로젝트 구조 (Project Structure)
+## 📁 9. 프로젝트 구조 (Project Structure)
 
 ```
 BTC_for_cloud/
