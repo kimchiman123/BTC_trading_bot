@@ -158,9 +158,7 @@ Docker Compose 기반으로 Zookeeper, Kafka Broker, PostgreSQL, Trading Bot, St
 |------|------|
 | **Latency** | 데이터 수집부터 모델 추론까지 지연 시간 **< 1초** |
 | **Reliability** | 72시간 연속 가동 테스트 시 **데이터 유실 0%** 달성 |
-| **Optimization** | 경량화된 아키텍처를 통해 **저사양 인스턴스**(2GB RAM)에서도 안정적 서빙 가능 |
-| **Backtest** | 누적 수익률 **4.38%**, 손익비 **2.22**, 최대 낙폭 **-1.37%** |
-
+| **Optimization** | 아키텍처 개선을 통하여 메모리 사용량 **40% 절감** |
 ---
 
 ## 🔍 7. 프로젝트 회고 (Retrospective)
