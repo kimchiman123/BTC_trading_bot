@@ -1,6 +1,7 @@
 # Model files
 *.joblib
 xgb_final_model.joblib
+model/
 
 # Python
 __pycache__/

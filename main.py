@@ -4,13 +4,13 @@ import os
 import sys
 import psycopg2
 
-from custom_objective import FocalLossObjective
+from core.custom_objective import FocalLossObjective
 
 # 모듈 import
-import producer_btc_1m_kafka
-import kafka_to_postgres
-import realtime_bot
-import append_data
+from streaming import producer as producer_btc_1m_kafka
+from streaming import consumer as kafka_to_postgres
+from core import realtime_bot
+from db import backfill as append_data
 
 
 # DB 설정 (데이터 확인용)

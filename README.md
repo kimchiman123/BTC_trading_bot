@@ -57,12 +57,12 @@
 | 다이어그램 컴포넌트 | 역할 | 관련 파일 |
 |:---:|:---|:---|
 | **Upbit API (WebSocket)** | 실시간 1분봉 시세 데이터의 원천 소스 | — (외부 API) |
-| **Kafka Producer** | 웹소켓으로 수신한 시세 데이터를 Kafka Topic으로 발행 | `producer_btc_1m_kafka.py` |
+| **Kafka Producer** | 웹소켓으로 수신한 시세 데이터를 Kafka Topic으로 발행 | `streaming/producer.py` |
 | **Kafka Broker** | Producer와 Consumer 간 메시지 중개 (Pub/Sub) | Docker Compose 내 서비스 |
-| **Kafka Consumer** | 스트리밍 데이터를 구독하여 PostgreSQL에 실시간 적재 | `kafka_to_postgres.py` |
-| **PostgreSQL** | 시세 데이터, 예측 결과, 거래 이력 저장소 | `apply_db_schema.py` |
-| **Trading Bot** | Kafka 메시지 + DB 과거 데이터를 결합하여 XGBoost 모델로 매매 결정 | `realtime_bot.py` |
-| **Streamlit Dashboard UI** | 파이프라인 상태, PnL, 승률 등 실시간 모니터링 | `dashboard.py` |
+| **Kafka Consumer** | 스트리밍 데이터를 구독하여 PostgreSQL에 실시간 적재 | `streaming/consumer.py` |
+| **PostgreSQL** | 시세 데이터, 예측 결과, 거래 이력 저장소 | `db/schema.py` |
+| **Trading Bot** | Kafka 메시지 + DB 과거 데이터를 결합하여 XGBoost 모델로 매매 결정 | `core/realtime_bot.py` |
+| **Streamlit Dashboard UI** | 파이프라인 상태, PnL, 승률 등 실시간 모니터링 | `dashboard/streamlit_app.py` |
 | **Orchestrator** *(다이어그램 외)* | 모든 프로세스의 생명 주기 관리, 헬스체크 및 자동 재시작 | `main.py` |
 
 ### 🔹 데이터 흐름 (Data Flow)
@@ -224,19 +224,43 @@ docker logs -f trading-bot
 
 ```
 BTC_for_cloud/
+│
+│  # ── 프로젝트 진입점 & 인프라 설정 ──
 ├── main.py                      # 🎛️ 멀티프로세싱 오케스트레이터
-├── producer_btc_1m_kafka.py     # 📡 Kafka Producer (1분봉 데이터 수집)
-├── kafka_to_postgres.py         # 📥 Kafka Consumer → PostgreSQL 적재
-├── realtime_bot.py              # 🤖 실시간 트레이딩 봇 (추론 + 매매)
-├── indicators.py                # 📊 보조지표 연산 모듈
-├── dashboard.py                 # 📈 Streamlit 대시보드
-├── xgb_final_model.joblib       # 🧠 학습된 XGBoost 모델
-├── docker-compose.yml           # 🐳 Docker Compose 설정
 ├── Dockerfile                   # 🐳 컨테이너 빌드 설정
+├── docker-compose.yml           # 🐳 Docker Compose 설정
 ├── entrypoint.sh                # 🚀 컨테이너 엔트리포인트
+│
+│  # ── 핵심 매매 로직 ──
+├── core/
+│   ├── realtime_bot.py          # 🤖 실시간 트레이딩 봇 (추론 + 매매)
+│   ├── indicators.py            # 📊 보조지표 연산 모듈
+│   └── custom_objective.py      # 🎯 XGBoost Focal Loss 목적함수
+│
+│  # ── Kafka 스트리밍 파이프라인 ──
+├── streaming/
+│   ├── producer.py              # 📡 Kafka Producer (1분봉 데이터 수집)
+│   └── consumer.py              # 📥 Kafka Consumer → PostgreSQL 적재
+│
+│  # ── DB 관리 ──
+├── db/
+│   ├── schema.py                # 🗄️ 테이블 생성 및 스키마 관리
+│   └── backfill.py              # 🔄 과거 데이터 백필
+│
+│  # ── 모니터링 & 대시보드 ──
+├── dashboard/
+│   ├── streamlit_app.py         # 📈 Streamlit 웹 대시보드
+│   └── local_monitor.py         # 🖥️ PyQt5 로컬 모니터 (개발용)
+│
+│  # ── ML 모델 ──
+├── model/
+│   └── xgb_final_model.joblib   # 🧠 학습된 XGBoost 모델
+│
+│  # ── 기타 ──
+├── dags/                        # ⚠️ (Deprecated) Airflow DAG 코드
 ├── data_preprocess/             # 📓 데이터 전처리 및 모델 학습 노트북
 │   └── experiments/             # 🧪 실험 및 백테스팅 기록
-└── dags/                        # ⚠️ (Deprecated) Airflow DAG 코드
+└── assets/                      # 🖼️ README 이미지 리소스
 ```
 
 ---

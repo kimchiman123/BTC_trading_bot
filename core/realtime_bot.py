@@ -14,8 +14,8 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 
 # 공통 모듈
-from indicators import add_indicators, merge_higher_tf, calculate_dynamic_threshold, frac_diff_ffd, resample_data, add_cyclical_features
-from custom_objective import FocalLossObjective 
+from core.indicators import add_indicators, merge_higher_tf, calculate_dynamic_threshold, frac_diff_ffd, resample_data, add_cyclical_features
+from core.custom_objective import FocalLossObjective 
 
 # ==========================================
 # [설정] 업비트 API 및 전략 설정
@@ -83,8 +83,8 @@ class RealTimeBot:
         # 4. 모델 로드
         # 4. 모델 로드
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(script_dir, 'xgb_final_model.joblib')
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            model_path = os.path.join(project_root, 'model', 'xgb_final_model.joblib')
             print(f"🔍 [Debug] 모델 경로: {model_path}")
             print(f"🔍 [Debug] 파일 존재 여부: {os.path.exists(model_path)}")
             
